@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Coffee Journal</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="container">
+      <h1>☕ Coffee Journal</h1>
+      <div class="toolbar">
+        <input id="q" type="search" placeholder="豆名・メモを検索…" />
+        <select id="sort">
+          <option value="date_desc">新しい順</option>
+          <option value="date_asc">古い順</option>
+          <option value="score_desc">評価が高い順</option>
+          <option value="score_asc">評価が低い順</option>
+        </select>
+        <span class="muted">平均: <strong id="avg">–</strong></span>
+      </div>
+    </header>
+
+    <main class="container grid2">
+      <section class="card">
+        <h2>記録</h2>
+        <form id="form">
+          <input type="hidden" id="id" />
+          <label>日付 <input id="date" type="date" required /></label>
+          <label
+            >豆名
+            <input id="bean" type="text" placeholder="例: Ethiopia" required
+          /></label>
+          <div class="row">
+            <label
+              >焙煎度
+              <select id="roast">
+                <option>Light</option>
+                <option>Medium</option>
+                <option>Dark</option>
+              </select>
+            </label>
+            <label
+              >粉量(g)
+              <input id="dose" type="number" step="0.1" min="0" value="15"
+            /></label>
+            <label
+              >湯温(℃)
+              <input id="temp" type="number" min="70" max="100" value="92"
+            /></label>
+          </div>
+          <div class="row">
+            <label
+              >抽出(秒) <input id="secs" type="number" min="0" value="120"
+            /></label>
+            <label
+              >評価(1-5)
+              <input
+                id="score"
+                type="number"
+                min="1"
+                max="5"
+                value="4"
+                required
+            /></label>
+          </div>
+          <label
+            >メモ
+            <textarea id="note" rows="3" placeholder="味の印象など"></textarea>
+          </label>
+          <div class="row">
+            <button type="submit">保存</button>
+            <button type="button" id="reset" class="secondary">リセット</button>
+            <button type="button" id="clear" class="secondary">全削除</button>
+          </div>
+          <p id="msg" class="message"></p>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>一覧</h2>
+        <ul id="list" class="list"></ul>
+      </section>
+    </main>
+
+    <footer class="container muted">
+      localStorage 保存 / 並び替え・検索対応
+    </footer>
+    <script src="app.js"></script>
+  </body>
+</html>
