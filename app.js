@@ -27,3 +27,45 @@ function addEntry(entry) {
   console.log("記録を追加しました:", newEntry);
   console.log("現在の記録数:", state.entries.length);
 }
+
+function render() {
+  list.innerHTML = "";
+  state.entries.forEach(({ id, bean, score, date }) => {
+    const li = document.createElement("li");
+    li.textContent = `${date} - ${bean} (${score})`;
+    list.appendChild(li);
+  });
+}
+
+
+//フォーム送信のイベントリスナー
+
+/**
+|--------------------------------------------------
+|ユーザーが保存ボタンを押したときに、入力内容を取得して addEntryを呼ぶ
+|--------------------------------------------------
+*/
+
+//フォーム送信処理
+form.addEventListener("submit", (e) => {
+  e.preventDefault(); //ページリロードを防ぐ
+
+  //入力値を取得
+  const entry = {
+    bean: beanInput.value.trim(),
+    score: Number(scoreInput.value),
+    date: dateInput.value,
+  };
+
+  //記録を追加
+  addEntry(entry);
+
+  //フォームをクリア
+  HTMLFormElement.prototype.reset.call(form);
+
+  msgEl.textContent = "記録を保存しました";
+  setTimeout(() => (msgEl.textContent = ""), 2000);
+
+  //画面更新
+  render();
+});

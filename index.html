@@ -4,87 +4,123 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Coffee Journal</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./tailwind.css" />
   </head>
-  <body>
-    <header class="container">
-      <h1>☕ Coffee Journal</h1>
-      <div class="toolbar">
-        <input id="q" type="search" placeholder="豆名・メモを検索…" />
-        <select id="sort">
-          <option value="date_desc">新しい順</option>
-          <option value="date_asc">古い順</option>
-          <option value="score_desc">評価が高い順</option>
-          <option value="score_asc">評価が低い順</option>
-        </select>
-        <span class="muted">平均: <strong id="avg">–</strong></span>
+  <body class="min-h-screen bg-stone-100 font-sans text-stone-900">
+    <header
+      class="bg-white/80 border-b border-stone-200 py-8 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/70"
+    >
+      <div class="mx-auto flex max-w-4xl flex-col gap-6 px-4 sm:px-8 lg:px-12">
+        <h1 class="text-3xl font-semibold text-coffee sm:text-4xl">
+          ☕ Coffee Journal
+        </h1>
+        <div
+          class="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-4 shadow-sm"
+        >
+          <input
+            id="q"
+            type="search"
+            placeholder="豆名・メモを検索…"
+            class="w-full flex-1 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-coffee focus:outline-none focus:ring-2 focus:ring-coffee/20"
+          />
+          <select
+            id="sort"
+            class="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-coffee focus:outline-none focus:ring-2 focus:ring-coffee/20 sm:w-auto"
+          >
+            <option value="date_desc">新しい順</option>
+            <option value="date_asc">古い順</option>
+            <option value="score_desc">評価が高い順</option>
+            <option value="score_asc">評価が低い順</option>
+          </select>
+          <span class="text-sm text-stone-500"
+            >平均: <strong id="avg" class="text-stone-900">–</strong></span
+          >
+        </div>
       </div>
     </header>
 
-    <main class="container grid2">
-      <section class="card">
-        <h2>記録</h2>
-        <form id="form">
-          <input type="hidden" id="id" />
-          <label>日付 <input id="date" type="date" required /></label>
+    <main
+      class="mx-auto grid max-w-4xl gap-8 px-4 py-10 sm:px-8 lg:grid-cols-[1fr_1.1fr] lg:px-12"
+    >
+      <h2 class="sr-only">記録</h2>
+      <form
+        id="form"
+        class="flex flex-col gap-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
+      >
+        <input type="hidden" id="id" />
+        <label class="flex flex-col gap-2 text-sm font-medium text-stone-700">
+          日付
+          <input
+            id="date"
+            type="date"
+            required
+            class="rounded-md border border-stone-300 px-3 py-2 text-sm shadow-sm transition focus:border-coffee focus:outline-none focus:ring-2 focus:ring-coffee/20"
+          />
+        </label>
+        <label class="flex flex-col gap-2 text-sm font-medium text-stone-700">
+          豆名
+          <input
+            id="bean"
+            type="text"
+            placeholder="例: Ethiopia"
+            required
+            class="rounded-md border border-stone-300 px-3 py-2 text-sm shadow-sm transition focus:border-coffee focus:outline-none focus:ring-2 focus:ring-coffee/20"
+          />
+        </label>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
           <label
-            >豆名
-            <input id="bean" type="text" placeholder="例: Ethiopia" required
-          /></label>
-          <div class="row">
-            <label
-              >焙煎度
-              <select id="roast">
-                <option>Light</option>
-                <option>Medium</option>
-                <option>Dark</option>
-              </select>
-            </label>
-            <label
-              >粉量(g)
-              <input id="dose" type="number" step="0.1" min="0" value="15"
-            /></label>
-            <label
-              >湯温(℃)
-              <input id="temp" type="number" min="70" max="100" value="92"
-            /></label>
-          </div>
-          <div class="row">
-            <label
-              >抽出(秒) <input id="secs" type="number" min="0" value="120"
-            /></label>
-            <label
-              >評価(1-5)
-              <input
-                id="score"
-                type="number"
-                min="1"
-                max="5"
-                value="4"
-                required
-            /></label>
-          </div>
-          <label
-            >メモ
-            <textarea id="note" rows="3" placeholder="味の印象など"></textarea>
+            class="flex flex-1 flex-col gap-2 text-sm font-medium text-stone-700"
+          >
+            評価(1-5)
+            <input
+              id="score"
+              type="number"
+              min="1"
+              max="5"
+              value="4"
+              required
+              class="rounded-md border border-stone-300 px-3 py-2 text-sm shadow-sm transition focus:border-coffee focus:outline-none focus:ring-2 focus:ring-coffee/20"
+            />
           </label>
-          <div class="row">
-            <button type="submit">保存</button>
-            <button type="button" id="reset" class="secondary">リセット</button>
-            <button type="button" id="clear" class="secondary">全削除</button>
-          </div>
-          <p id="msg" class="message"></p>
-        </form>
-      </section>
+        </div>
 
-      <section class="card">
-        <h2>一覧</h2>
-        <ul id="list" class="list"></ul>
+        <div class="flex flex-wrap gap-3">
+          <button
+            type="submit"
+            class="inline-flex items-center justify-center rounded-md bg-coffee px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-coffee/90 focus:outline-none focus:ring-2 focus:ring-coffee/20"
+          >
+            保存
+          </button>
+          <button
+            type="button"
+            id="resetBtn"
+            class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-coffee/20"
+          >
+            リセット
+          </button>
+          <button
+            type="button"
+            id="clear"
+            class="inline-flex items-center justify-center rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-200"
+          >
+            全削除
+          </button>
+        </div>
+        <p id="msg" class="text-sm text-coffee"></p>
+      </form>
+
+      <section
+        class="flex h-fit flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
+      >
+        <h2 class="text-xl font-semibold text-stone-800">一覧</h2>
+        <ul id="list" class="space-y-3 text-sm text-stone-700"></ul>
       </section>
     </main>
 
-    <footer class="container muted">
-      localStorage 保存 / 並び替え・検索対応
+    <footer class="mt-auto bg-white/70 py-6 text-sm text-stone-500">
+      <div class="mx-auto max-w-4xl px-4 sm:px-8 lg:px-12">
+        localStorage 保存 / 並び替え・検索対応
+      </div>
     </footer>
     <script src="app.js"></script>
   </body>
