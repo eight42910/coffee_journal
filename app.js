@@ -80,6 +80,36 @@ function load() {
 
 /**
 |--------------------------------------------------
+| バリデーション関数
+|--------------------------------------------------
+*/
+//入力値をバリデーション
+function validate(entry) {
+  const errors = [];
+
+  if (!entry.bean || entry.bean.trim().length === 0) {
+    errors.push("豆名を入力してください");
+  }
+
+  if (!entry.score || entry.score < 1 || entry.score > 5) {
+    errors.push("評価は1~5の数値を入力してください");
+  }
+
+  if (!entry.date) {
+    errors.push("日付を入力してください");
+  } else {
+    const inputDate = new Date(entry.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); //時刻をリセット
+    if (inputDate > today) {
+      errors.push("未来の日付は入力できません");
+    }
+  }
+  return errors;
+}
+
+/**
+|--------------------------------------------------
 | 記録を追加する関数
 |--------------------------------------------------
 */
@@ -196,6 +226,19 @@ form.addEventListener("submit", (e) => {
     date: dateInput.value,
   };
 
+  const errors = validate(entry);
+  if (errors.length > 0) {
+    msgEl.textContent = errors.join("/");
+    msgEl.style.color = "#ef4444";
+    return; // エラーを表示したら保存処理に進まない
+  }
+
+  addEntry(entry);
+  form.reset();
+  msgEl.textContent = "記録を保存しました";
+  msgEl.style.color = "#10b981";
+  setTimeout(() => (msgEl.textContent = ""), 2000);
+  render();
   //記録を追加
   addEntry(entry);
 
