@@ -11,7 +11,10 @@ const scoreInput = document.getElementById("score");
 const dateInput = document.getElementById("date");
 const list = document.getElementById("list");
 const msgEl = document.getElementById("msg");
-
+//リセットボタン
+const resetBtnEl = document.getElementById("resetBtn");
+//全削除要素
+const clearBtn = document.getElementById("clear");
 /**
 |--------------------------------------------------
 | localStorageについて
@@ -98,7 +101,8 @@ function validate(entry) {
   if (!entry.date) {
     errors.push("日付を入力してください");
   } else {
-    const inputDate = new Date(entry.date);
+    //ローカルタイムとしてパースする
+    const inputDate = new Date(`${entry.date}T00:00:00`);
     const today = new Date();
     today.setHours(0, 0, 0, 0); //時刻をリセット
     if (inputDate > today) {
@@ -150,8 +154,29 @@ function deleteEntry(id) {
   msgEl.textContent = "記録を削除しました";
   setTimeout(() => (msgEl.textContent = ""), 2000);
 }
+/**
+|--------------------------------------------------
+| 記録を全削除処理の実装
+|--------------------------------------------------
+*/
+function clearAll() {
+  if (!confirm("全ての記録を削除しますか？この操作は取り消せません。")) {
+    return;
+  }
+  state.entries = [];
+  save();
+  render();
+  msgEl.textContent = "全ての記録を削除しました";
+  setTimeout(() => {
+    msgEl.textContent = "";
+  }, 2000);
+}
 
-//render
+/**
+|--------------------------------------------------
+| render
+|--------------------------------------------------
+*/
 function render() {
   list.innerHTML = "";
   //空状態の処理
@@ -207,6 +232,16 @@ function init() {
   load(); //追加:データを読み込み
   render();
 }
+
+//イベント登録(全削除)
+clearBtn.addEventListener("click", clearAll);
+//イベント登録（リセット）
+resetBtnEl.addEventListener("click", () => {
+  form.reset();
+  //視覚的に通知を消すための処理
+  msgEl.textContent = "";
+});
+
 //フォーム送信のイベントリスナー
 
 /**
