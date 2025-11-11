@@ -2,7 +2,14 @@
 
 let state = {
   entries: [], //記録の配列
+  //検索ソート
+  query: "",
+  sortKey: "date",
+  sortOrder: "desc", //降順、昇順を決める
 };
+
+//タイマー変数
+let debounceTimer = null;
 
 //DOM操作の取得
 const form = document.getElementById("form");
@@ -15,6 +22,11 @@ const msgEl = document.getElementById("msg");
 const resetBtnEl = document.getElementById("resetBtn");
 //全削除要素
 const clearBtn = document.getElementById("clear");
+//ソート
+const searchInput = document.getElementById("q");
+const sortSelect = document.getElementById("sort");
+const avgEl = document.getElementById("avg");
+
 /**
 |--------------------------------------------------
 | localStorageについて
@@ -46,8 +58,13 @@ const STORAGE_KEY = "coffee-journal-entries";
 
 function save() {
   try {
-    const json = JSON.stringify(state.entries);
-    localStorage.setItem(STORAGE_KEY, json);
+    const data = {
+      entries: state.entries,
+      query: state.query,
+      sortKey: state.sortKey,
+      sortOrder: state.sortOrder,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     console.log("データを保存しました", state.entries.length, "件");
   } catch (err) {
     console.log("保存に失敗しました", err);
@@ -58,22 +75,24 @@ function save() {
 function load() {
   try {
     const json = localStorage.getItem(STORAGE_KEY);
-
-    //データがない場合
     if (!json) {
       console.log("保存されたデータがありません");
       return;
     }
 
-    // JSON文字列をオブジェクトに変換
-    const entries = JSON.parse(json);
+    const data = JSON.parse(json);
 
-    // 配列かどうかチェック
-    if (!Array.isArray(entries)) {
-      console.warn("不正なデータ形式です");
+    if (Array.isArray(data)) {
+      state.entries = data;
+    } else if (data && typeof data === "object") {
+      state.entries = Array.isArray(data.entries) ? data.entries : [];
+      state.query = typeof data.query === "string" ? data.query : "";
+      state.sortKey = data.sortKey || "data";
+    } else {
+      console.warn("不正データ形式です");
       return;
     }
-    state.entries = entries;
+
     console.log("データを読み込みました:", state.entries.length, "件");
   } catch (err) {
     console.error("読み込みに失敗しました:", err);
@@ -110,6 +129,114 @@ function validate(entry) {
     }
   }
   return errors;
+}
+
+/**
+|--------------------------------------------------
+| フィルタリング関数（純関数）
+|--------------------------------------------------
+*/
+
+/**
+ * 記録を検索文字列でフィルタリング
+ * @param {Array} entries
+ * @param {string} query
+ * @returns {Array}
+ */
+
+function filterEntries(entries, query) {
+  //検索文字列が空なら全て返す
+  if (!query || query.trim().length === 0) {
+    return entries;
+  }
+
+  // 小文字に統一して部分一致検索
+  const lowerQuery = query.toLowerCase();
+
+  return entries.filter((entry) => {
+    const beanMatch = entry.bean.toLowerCase().includes(lowerQuery);
+    const noteMatch =
+      entry.note && entry.note.toLowerCase().includes(lowerQuery);
+    return beanMatch || noteMatch;
+  });
+}
+
+/**
+|--------------------------------------------------
+| 記録をソートする関数
+|--------------------------------------------------
+*/
+
+/**
+ * 記録をソート
+ * @param {Array} entries - 記録の配列
+ * @param {string} key - ソートキー（'date' | 'score' | 'bean'）
+ * @param {string} order - ソート順（'asc' | 'desc'）
+ * @returns {Array} - ソート済みの記録
+ */
+
+function sortEntries(entries, key, order) {
+  const sorted = [...entries]; //元配列おｗ壊さない
+  // ソートキーに応じて比較対象を決定
+  sorted.sort((a, b) => {
+    let compareA;
+    let compareB;
+
+    if (key === "date") {
+      compareA = new Date(a.date);
+      compareB = new Date(b.date);
+    } else if (key === "score") {
+      compareA = a.score;
+      compareB = b.score;
+    } else if (key == "bean") {
+      compareA = a.bean.toLowerCase();
+      compareB = b.bean.toLowerCase();
+    } else {
+      return 0; //想定外キーは並び替えない
+    }
+
+    if (order === "asc") {
+      if (compareA < compareB) return 1;
+      if (compareA > compareB) return -1;
+      return 0;
+    } else {
+      if (compareA < compareB) return 1;
+      if (compareA > compareB) return -1;
+      return 0;
+    }
+  });
+
+  return sorted;
+}
+/**
+|--------------------------------------------------
+| 統計情報を計算する関数
+|--------------------------------------------------
+*/
+/**
+ * 統計情報を計算
+ * @param {Array} entries - 記録の配列
+ * @returns {Object} - 統計情報 { avg, max, maxBean, total }
+ */
+
+function calculateState(entries) {
+  if (entries.length === 0) {
+    return { avg: 0, max: 0, maxBean: null, total: 0 };
+  }
+  //平均評価
+  const totalScore = entries.reduce((sum, entry) => sum + entry.score, 0);
+  const avg = totalScore / entries.length;
+  //最高評価
+  const maxEntry = entries.reduce((max, entry) => {
+    return entry.score > max.score ? entry : max;
+  }, entries[0]);
+
+  return {
+    avg: Math.round(avg * 10) / 10, //少数一桁に丸める
+    max: maxEntry.score,
+    maxBean: maxEntry.bean,
+    total: entries.length,
+  };
 }
 
 /**
@@ -178,17 +305,31 @@ function clearAll() {
 |--------------------------------------------------
 */
 function render() {
+  //並び順
+  // 1. フィルタリング
+
+  let filtered = filterEntries(state.entries, state.query);
+
+  // 2. ソート
+  const sorted = sortEntries(filtered, state.sortKey, state.sortOrder);
+  // 3. 統計情報を計算
+  const stats = calculateState(filtered);
+
+  //統計情報を表示
+  if (stats.total === 0) {
+    avgEl.textContent = "-";
+  } else {
+    avgEl.textContent = `☆${stats.avg}(${stats.total}件)`;
+  }
+  //リストを表示
   list.innerHTML = "";
-  //空状態の処理
-  if (state.entries.length === 0) {
-    list.innerHTML = `<li class="text-sm text-stone-500">記録がありません</li>`;
+
+  if (sorted.length === 0) {
+    list.innerHTML = state.query
+      ? `<li class="text-sm text-stone-500">検索結果がありません</li>`
+      : `<li class="text-sm text-stone-500">記録がありません</li>`;
     return;
   }
-
-  //並び順
-  const sorted = [...state.entries].sort(
-    (a, b) => new Date(b.date) - new Date(a.date)
-  );
 
   //表示内容
   sorted.forEach((entry) => {
@@ -230,16 +371,48 @@ function escapeHtml(str) {
 function init() {
   console.log("Coffee Journal を初期化しました");
   load(); //追加:データを読み込み
+
+  // stateの検索条件とソート条件をフォームに反映
+  searchInput.value = state.query;
+  sortSelect.value = `${state.sortKey}_${state.sortOrder}`;
+
   render();
 }
 
 //イベント登録(全削除)
 clearBtn.addEventListener("click", clearAll);
+
 //イベント登録（リセット）
 resetBtnEl.addEventListener("click", () => {
   form.reset();
   //視覚的に通知を消すための処理
   msgEl.textContent = "";
+});
+
+//検索機能の処理
+searchInput.addEventListener("input", (e) => {
+  const value = e.target.value;
+
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+  }
+
+  debounceTimer = setTimeout(() => {
+    state.query = value;
+    save();
+    render();
+  }, 300);
+});
+
+//ソート機能の実装
+sortSelect.addEventListener("change", (e) => {
+  const value = e.target.value;
+  const [key, order] = value.split("_");
+
+  state.sortKey = key;
+  state.sortOrder = order;
+  save();
+  render();
 });
 
 //フォーム送信のイベントリスナー
@@ -273,22 +446,6 @@ form.addEventListener("submit", (e) => {
   msgEl.textContent = "記録を保存しました";
   msgEl.style.color = "#10b981";
   setTimeout(() => (msgEl.textContent = ""), 2000);
-  render();
-  //記録を追加
-  addEntry(entry);
-
-  //フォームをクリア
-  /**
-  |--------------------------------------------------
-  | HTMLFormElement.prototype.reset はフォーム要素に備わっている組み込みメソッド
-  |--------------------------------------------------
-  */
-  HTMLFormElement.prototype.reset.call(form);
-
-  msgEl.textContent = "記録を保存しました";
-  setTimeout(() => (msgEl.textContent = ""), 2000);
-
-  //画面更新
   render();
 });
 
