@@ -1,4 +1,11 @@
-//グローバルな状態
+import { filterEntries, sortEntries, calculateStats } from "./src/logic.js";
+import { validate } from "./src/validation.js";
+
+/**
+|--------------------------------------------------
+| グローバルな状態
+|--------------------------------------------------
+*/
 
 let state = {
   entries: [], //記録の配列
@@ -7,6 +14,45 @@ let state = {
   sortKey: "date",
   sortOrder: "desc", //降順、昇順を決める
 };
+
+//updateURL()関数
+function updateURL() {
+  const params = new URLSearchParams();
+
+  if (state.query) {
+    params.set("q", state.query);
+  }
+
+  const sortValue = `${state.sortKey}_${state.sortOrder}`;
+  if (sortValue !== "date_desc") {
+    params.set("sort", sortValue);
+  }
+
+  const newURL = params.toString()
+    ? `${window.location.pathname}?${params.toString()}`
+    : window.location.pathname;
+  console.log("updateURL ->", newURL);
+  history.replaceState(null, "", newURL);
+}
+
+//stateの復元処理
+function loadFromURL() {
+  const params = new URLSearchParams(window.location.search);
+
+  const query = params.get("q");
+  if (query !== null) {
+    state.query = query;
+  }
+
+  const sort = params.get("sort");
+  if (sort) {
+    const [key, order] = sort.split("_");
+    if (key && order) {
+      state.sortKey = key;
+      state.sortOrder = order;
+    }
+  }
+}
 
 //タイマー変数
 let debounceTimer = null;
@@ -26,6 +72,29 @@ const clearBtn = document.getElementById("clear");
 const searchInput = document.getElementById("q");
 const sortSelect = document.getElementById("sort");
 const avgEl = document.getElementById("avg");
+
+/**
+ * メッセージを表示
+ * @param {string} message - 表示するメッセージ
+ * @param {string} type - 'success' | 'error' | 'info'
+ */
+
+function showMessage(message, type = "info") {
+  msgEl.textContent = message;
+}
+
+// 色を変更
+if (type === "success") {
+  msgEl.style.color = "#10b981";
+} else if (type === "error") {
+  msgEl.style.color = "#ef4444";
+} else {
+  msgEl.style.color = "inherit";
+}
+
+setTimeout(() => {
+  msgEl.textContent = "";
+}, 3000);
 
 /**
 |--------------------------------------------------
@@ -55,7 +124,7 @@ const avgEl = document.getElementById("avg");
 
 //localStorage key
 const STORAGE_KEY = "coffee-journal-entries";
-
+// データを保存
 function save() {
   try {
     const data = {
@@ -72,6 +141,7 @@ function save() {
   }
 }
 
+// データを読み込み
 function load() {
   try {
     const json = localStorage.getItem(STORAGE_KEY);
@@ -81,7 +151,7 @@ function load() {
     }
 
     const data = JSON.parse(json);
-
+    // 下位互換性: 古い形式（配列のみ）にも対応
     if (Array.isArray(data)) {
       state.entries = data;
     } else if (data && typeof data === "object") {
@@ -98,145 +168,6 @@ function load() {
     console.error("読み込みに失敗しました:", err);
     msgEl.textContent = "データの読み込みに失敗しました";
   }
-}
-
-/**
-|--------------------------------------------------
-| バリデーション関数
-|--------------------------------------------------
-*/
-//入力値をバリデーション
-function validate(entry) {
-  const errors = [];
-
-  if (!entry.bean || entry.bean.trim().length === 0) {
-    errors.push("豆名を入力してください");
-  }
-
-  if (!entry.score || entry.score < 1 || entry.score > 5) {
-    errors.push("評価は1~5の数値を入力してください");
-  }
-
-  if (!entry.date) {
-    errors.push("日付を入力してください");
-  } else {
-    //ローカルタイムとしてパースする
-    const inputDate = new Date(`${entry.date}T00:00:00`);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); //時刻をリセット
-    if (inputDate > today) {
-      errors.push("未来の日付は入力できません");
-    }
-  }
-  return errors;
-}
-
-/**
-|--------------------------------------------------
-| フィルタリング関数（純関数）
-|--------------------------------------------------
-*/
-
-/**
- * 記録を検索文字列でフィルタリング
- * @param {Array} entries
- * @param {string} query
- * @returns {Array}
- */
-
-function filterEntries(entries, query) {
-  //検索文字列が空なら全て返す
-  if (!query || query.trim().length === 0) {
-    return entries;
-  }
-
-  // 小文字に統一して部分一致検索
-  const lowerQuery = query.toLowerCase();
-
-  return entries.filter((entry) => {
-    const beanMatch = entry.bean.toLowerCase().includes(lowerQuery);
-    const noteMatch =
-      entry.note && entry.note.toLowerCase().includes(lowerQuery);
-    return beanMatch || noteMatch;
-  });
-}
-
-/**
-|--------------------------------------------------
-| 記録をソートする関数
-|--------------------------------------------------
-*/
-
-/**
- * 記録をソート
- * @param {Array} entries - 記録の配列
- * @param {string} key - ソートキー（'date' | 'score' | 'bean'）
- * @param {string} order - ソート順（'asc' | 'desc'）
- * @returns {Array} - ソート済みの記録
- */
-
-function sortEntries(entries, key, order) {
-  const sorted = [...entries]; //元配列おｗ壊さない
-  // ソートキーに応じて比較対象を決定
-  sorted.sort((a, b) => {
-    let compareA;
-    let compareB;
-
-    if (key === "date") {
-      compareA = new Date(a.date);
-      compareB = new Date(b.date);
-    } else if (key === "score") {
-      compareA = a.score;
-      compareB = b.score;
-    } else if (key == "bean") {
-      compareA = a.bean.toLowerCase();
-      compareB = b.bean.toLowerCase();
-    } else {
-      return 0; //想定外キーは並び替えない
-    }
-
-    if (order === "asc") {
-      if (compareA < compareB) return 1;
-      if (compareA > compareB) return -1;
-      return 0;
-    } else {
-      if (compareA < compareB) return 1;
-      if (compareA > compareB) return -1;
-      return 0;
-    }
-  });
-
-  return sorted;
-}
-/**
-|--------------------------------------------------
-| 統計情報を計算する関数
-|--------------------------------------------------
-*/
-/**
- * 統計情報を計算
- * @param {Array} entries - 記録の配列
- * @returns {Object} - 統計情報 { avg, max, maxBean, total }
- */
-
-function calculateState(entries) {
-  if (entries.length === 0) {
-    return { avg: 0, max: 0, maxBean: null, total: 0 };
-  }
-  //平均評価
-  const totalScore = entries.reduce((sum, entry) => sum + entry.score, 0);
-  const avg = totalScore / entries.length;
-  //最高評価
-  const maxEntry = entries.reduce((max, entry) => {
-    return entry.score > max.score ? entry : max;
-  }, entries[0]);
-
-  return {
-    avg: Math.round(avg * 10) / 10, //少数一桁に丸める
-    max: maxEntry.score,
-    maxBean: maxEntry.bean,
-    total: entries.length,
-  };
 }
 
 /**
@@ -371,10 +302,14 @@ function escapeHtml(str) {
 function init() {
   console.log("Coffee Journal を初期化しました");
   load(); //追加:データを読み込み
+  loadFromURL(); //URLから状態を復元
 
   // stateの検索条件とソート条件をフォームに反映
   searchInput.value = state.query;
   sortSelect.value = `${state.sortKey}_${state.sortOrder}`;
+
+  //初回のURL更新
+  updateURL();
 
   render();
 }
@@ -399,6 +334,7 @@ searchInput.addEventListener("input", (e) => {
 
   debounceTimer = setTimeout(() => {
     state.query = value;
+    updateURL();
     save();
     render();
   }, 300);
@@ -411,12 +347,28 @@ sortSelect.addEventListener("change", (e) => {
 
   state.sortKey = key;
   state.sortOrder = order;
+  updateURL();
   save();
   render();
 });
 
-//フォーム送信のイベントリスナー
+/**
+|--------------------------------------------------
+| 戻る・進むでURL変更時のstate復元からの再描画
+|--------------------------------------------------
+*/
+window.addEventListener("popstate", () => {
+  console.log("popstate イベント発火");
 
+  // URLから状態を復元
+  loadFromURL();
+  // フォームの値を同期
+  searchInput.value = state.query;
+  sortSelect.value = `${state.sortKey}_${state.sortOrder}`;
+  render();
+});
+
+//フォーム送信のイベントリスナー
 /**
 |--------------------------------------------------
 |ユーザーが保存ボタンを押したときに、入力内容を取得して addEntryを呼ぶ
