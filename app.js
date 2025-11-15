@@ -1,4 +1,9 @@
-import { filterEntries, sortEntries, calculateStats } from "./src/logic.js";
+import {
+  filterEntries,
+  sortEntries,
+  calculateStats,
+  paginate,
+} from "./src/logic.js";
 import { validate } from "./src/validation.js";
 
 /**
@@ -13,6 +18,9 @@ let state = {
   query: "",
   sortKey: "date",
   sortOrder: "desc", //降順、昇順を決める
+  page: 1, //現在のページ
+  perPage: 10, //1ページあたりの表示件数
+  editingId: null, //追加、編集中の記録ID
 };
 
 //updateURL()関数
@@ -72,6 +80,10 @@ const clearBtn = document.getElementById("clear");
 const searchInput = document.getElementById("q");
 const sortSelect = document.getElementById("sort");
 const avgEl = document.getElementById("avg");
+//ページネーション
+const prevPageBtn = document.getElementById("prevPage");
+const nextPageBtn = document.getElementById("nextPage");
+const pageInfoEl = document.getElementById("pageInfo");
 
 /**
  * メッセージを表示
@@ -81,48 +93,26 @@ const avgEl = document.getElementById("avg");
 
 function showMessage(message, type = "info") {
   msgEl.textContent = message;
-}
 
-// 色を変更
-if (type === "success") {
-  msgEl.style.color = "#10b981";
-} else if (type === "error") {
-  msgEl.style.color = "#ef4444";
-} else {
-  msgEl.style.color = "inherit";
-}
+  // 色を変更
+  if (type === "success") {
+    msgEl.style.color = "#10b981";
+  } else if (type === "error") {
+    msgEl.style.color = "#ef4444";
+  } else {
+    msgEl.style.color = "inherit";
+  }
 
-setTimeout(() => {
-  msgEl.textContent = "";
-}, 3000);
+  setTimeout(() => {
+    msgEl.textContent = "";
+  }, 3000);
+}
 
 /**
 |--------------------------------------------------
-| localStorageについて
+| localStorage key
 |--------------------------------------------------
 */
-// // 保存
-// localStorage.setItem("key", "value");
-
-// // 読み込み
-// const value = localStorage.getItem("key");
-
-// // 削除
-// localStorage.removeItem("key");
-
-// // 全削除
-// localStorage.clear();
-
-// const data = { name: "eight", age: 35 };
-
-// JSON文字列に変換して保存
-// localStorage.setItem("data", JSON.stringify(data));
-
-// 読み込んでオブジェクトに戻す
-// const loaded = JSON.parse(localStorage.getItem("data"));
-// console.log(loaded);
-
-//localStorage key
 const STORAGE_KEY = "coffee-journal-entries";
 // データを保存
 function save() {
@@ -157,7 +147,7 @@ function load() {
     } else if (data && typeof data === "object") {
       state.entries = Array.isArray(data.entries) ? data.entries : [];
       state.query = typeof data.query === "string" ? data.query : "";
-      state.sortKey = data.sortKey || "data";
+      state.sortKey = date.sortKey || "date";
     } else {
       console.warn("不正データ形式です");
       return;
@@ -244,18 +234,29 @@ function render() {
   // 2. ソート
   const sorted = sortEntries(filtered, state.sortKey, state.sortOrder);
   // 3. 統計情報を計算
-  const stats = calculateState(filtered);
+  const stats = calculateStats(filtered);
 
-  //統計情報を表示
-  if (stats.total === 0) {
-    avgEl.textContent = "-";
-  } else {
-    avgEl.textContent = `☆${stats.avg}(${stats.total}件)`;
-  }
-  //リストを表示
+  //4. paginateの呼び出しを追加
+  const { items, totalPages, currentPage, hasNext, hasPrev, total } = paginate(
+    sorted,
+    state.page,
+    state.perPage
+  );
+
   list.innerHTML = "";
 
-  if (sorted.length === 0) {
+  //ページ情報の更新
+  if (totalPages === 0) {
+    pageInfoEl.textContent = "0 / 0";
+    prevPageBtn.disabled = true;
+    nextPageBtn.disabled = true;
+  } else {
+    pageInfoEl.textContent = `${currentPage} / ${totalPages}`;
+    prevPageBtn.disabled = !hasPrev;
+    nextPageBtn.disabled = !hasNext;
+  }
+
+  if (items.length === 0) {
     list.innerHTML = state.query
       ? `<li class="text-sm text-stone-500">検索結果がありません</li>`
       : `<li class="text-sm text-stone-500">記録がありません</li>`;
@@ -263,25 +264,35 @@ function render() {
   }
 
   //表示内容
-  sorted.forEach((entry) => {
+  items.forEach((entry) => {
     const li = document.createElement("li");
     li.className =
       "flex items-center justify-between gap-4 rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm";
     const stars = "★".repeat(entry.score) + "☆".repeat(5 - entry.score);
-    li.innerHTML = `<div class="flex flex-col gap-1">
-        <strong class="text-sm font-semibold text-stone-900">${escapeHtml(
-          entry.bean
-        )}</strong>
-        <span class="text-xs text-stone-500">${stars} ｜ ${entry.date}</span>
-      </div>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-200"
-        onclick="deleteEntry(${entry.id})"
-      >
-        <span aria-hidden="true">🗑</span>
-        削除
-      </button>`;
+
+    const infoWrapper = document.createElement("div");
+    infoWrapper.className = "flex flex-col gap-1";
+
+    const title = document.createElement("strong");
+    title.className = "text-sm font-semibold text-stone-900";
+    title.innerHTML = escapeHtml(entry.bean);
+
+    const meta = document.createElement("span");
+    meta.className = "text-xs text-stone-500";
+    meta.textContent = `${stars} | ${entry.date}`;
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className =
+      "inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-200";
+    deleteBtn.innerHTML = `<span aria-hidden="true">🗑️</span>削除`;
+    deleteBtn.addEventListener("click", () => deleteEntry(entry.id));
+
+    infoWrapper.appendChild(title);
+    infoWrapper.appendChild(meta);
+    li.appendChild(infoWrapper);
+    li.appendChild(deleteBtn);
+
     list.appendChild(li);
   });
 

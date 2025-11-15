@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { filterEntries, sortEntries, calculateStats } from "../src/logic.js";
+import {
+  filterEntries,
+  sortEntries,
+  calculateStats,
+  paginate,
+} from "../src/logic.js";
 
 /**
 |--------------------------------------------------
@@ -143,5 +148,38 @@ describe("calculateStats", () => {
       maxBean: null,
       total: 0,
     });
+  });
+});
+
+/**
+|--------------------------------------------------
+| paginate　テスト
+|--------------------------------------------------
+*/
+describe("paginate", () => {
+  const entries = Array.from({ length: 25 }, (_, i) => ({ id: i + 1 }));
+
+  it("1ページ目を正しく取得", () => {
+    const result = paginate(entries, 1, 10);
+    expect(result.items).toHaveLength(10);
+    expect(result.items[0].id).toBe(1);
+    expect(result.totalPages).toBe(3);
+    expect(result.hasNext).toBe(true);
+    expect(result.hasPrev).toBe(false);
+  });
+
+  it("最後のページを正しく取得", () => {
+    const result = paginate(entries, 3, 10);
+    expect(result.items).toHaveLength(5); // 残り5件
+    expect(result.hasNext).toBe(false);
+    expect(result.hasPrev).toBe(true);
+  });
+
+  it("空の配列の場合", () => {
+    const result = paginate([], 1, 10);
+    expect(result.items).toEqual([]);
+    expect(result.totalPages).toBe(0);
+    expect(result.hasNext).toBe(false);
+    expect(result.hasPrev).toBe(false);
   });
 });
