@@ -36,6 +36,11 @@ function updateURL() {
     params.set("sort", sortValue);
   }
 
+  //ページ（1ページ目は省略）
+  if (state.page > 1) {
+    params.set("page", state.page);
+  }
+
   const newURL = params.toString()
     ? `${window.location.pathname}?${params.toString()}`
     : window.location.pathname;
@@ -58,6 +63,14 @@ function loadFromURL() {
     if (key && order) {
       state.sortKey = key;
       state.sortOrder = order;
+    }
+  }
+  //ページ
+  const page = params.get("page");
+  if (page) {
+    const pageNum = parseInt(page, 10);
+    if (pageNum > 0) {
+      state.page = pageNum;
     }
   }
 }
@@ -166,19 +179,31 @@ function load() {
 |--------------------------------------------------
 */
 //記録を追加
-function addEntry(entry) {
-  //新しいIDを生成（現在のタイムスタンプ）
-  const newEntry = {
-    ...entry,
-    id: Date.now(),
-  };
+function saveEntry(entry) {
+  if (state.editingId) {
+    //更新処理
+    const index = state.entries.findIndex((e) => e.id === state.editingId);
+    if (index !== -1) {
+      state.entries[index] = {
+        ...state.entries[index],
+        ...entry,
+      };
+      console.log("記録を更新しました:", state.entries[index]);
+      showMessage("記録を更新しました", "success");
+    }
+    cancelEdit();
+  } else {
+    const newEntry = {
+      ...entry,
+      id: Date.now(),
+    };
+    state.entries.push(newEntry);
+    console.log("記録を追加しました: ", newEntry);
+    showMessage("記録を保存しました", success);
+  }
 
-  //state.entries　に追加
-  state.entries.push(newEntry);
-
-  console.log("記録を追加しました:", newEntry);
   save();
-  console.log("現在の記録数:", state.entries.length);
+  render();
 }
 
 /**
@@ -218,6 +243,52 @@ function clearAll() {
   setTimeout(() => {
     msgEl.textContent = "";
   }, 2000);
+}
+/**
+|--------------------------------------------------
+| 編集機能
+|--------------------------------------------------
+*/
+function startEdit(id) {
+  const entry = state.entries.find((e) => e.di === id);
+  if (!entry) return;
+
+  //編集中のIDを保存
+  state.editingId = id;
+
+  //フォーム値を入力
+  document.getElementById("id").value = entry.id;
+  beanInput.value = entry.bean;
+  scoreInput.value = entry.score;
+  dateInput.value = entry.date;
+
+  //他のフィールドで使っている場合は、ここでセット）
+
+  //送信版のテキストを更新
+  const submitBtn = form.querySelector('button[type= "submit"]');
+  submitBtn.textContent = "更新";
+
+  //フォームまでスクロール
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  showMessage("編集モードです", "info");
+}
+
+/**
+|--------------------------------------------------
+| 編集モードキャンセル
+|--------------------------------------------------
+*/
+
+function cancelEdit() {
+  state.editingId = null;
+  document.getElementById("id").value = "";
+  form.reset();
+
+  const submitBtn = form.querySelector('button[type="submit"');
+  submitBtn.textContent = "保存";
+
+  msgEl.textContent = "";
 }
 
 /**
@@ -330,9 +401,7 @@ clearBtn.addEventListener("click", clearAll);
 
 //イベント登録（リセット）
 resetBtnEl.addEventListener("click", () => {
-  form.reset();
-  //視覚的に通知を消すための処理
-  msgEl.textContent = "";
+  cancelEdit();
 });
 
 //検索機能の処理
@@ -345,6 +414,7 @@ searchInput.addEventListener("input", (e) => {
 
   debounceTimer = setTimeout(() => {
     state.query = value;
+    state.page = 1; //条件変更後に存在しないページを指し続けないための処理
     updateURL();
     save();
     render();
@@ -358,9 +428,41 @@ sortSelect.addEventListener("change", (e) => {
 
   state.sortKey = key;
   state.sortOrder = order;
+  state.page = 1; //条件変更後に存在しないページを指し続けないための処理
   updateURL();
   save();
   render();
+});
+
+/**
+|--------------------------------------------------
+| ページネーションの移動（イベントリスナー）
+|--------------------------------------------------
+*/
+//前のページへ
+prevPageBtn.addEventListener("click", () => {
+  if (state.page > 1) {
+    state.page--;
+    updateURL();
+    save();
+    render();
+    list.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+});
+
+//次のページへ
+nextPageBtn.addEventListener("click", () => {
+  const filtered = filterEntries(state.entries, state.query);
+  const sorted = sortEntries(filtered, state.sortKey, state.sortOrder);
+  const { totalPages } = paginate(sorted, state.page, state.perPage);
+
+  if (state.page < totalPages) {
+    state.page++;
+    updateURL();
+    save();
+    render();
+    list.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 });
 
 /**
@@ -404,7 +506,7 @@ form.addEventListener("submit", (e) => {
     return; // エラーを表示したら保存処理に進まない
   }
 
-  addEntry(entry);
+  saveEntry(entry);
   form.reset();
   msgEl.textContent = "記録を保存しました";
   msgEl.style.color = "#10b981";
