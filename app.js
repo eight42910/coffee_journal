@@ -98,6 +98,10 @@ const prevPageBtn = document.getElementById("prevPage");
 const nextPageBtn = document.getElementById("nextPage");
 const pageInfoEl = document.getElementById("pageInfo");
 
+//JSON/CSVボタン
+const exportJsonBtn = document.getElementById("exportJson");
+const exportCsvBtn = document.getElementById("exportCsv");
+
 /**
  * メッセージを表示
  * @param {string} message - 表示するメッセージ
