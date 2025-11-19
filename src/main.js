@@ -3,8 +3,8 @@ import {
   sortEntries,
   calculateStats,
   paginate,
-} from "./src/logic.js";
-import { validate } from "./src/validation.js";
+} from "./logic/logic.js";
+import { validate } from "./validation/validation.js";
 
 /**
 |--------------------------------------------------
@@ -99,8 +99,107 @@ const nextPageBtn = document.getElementById("nextPage");
 const pageInfoEl = document.getElementById("pageInfo");
 
 //JSON/CSVボタン
-const exportJsonBtn = document.getElementById("exportJson");
-const exportCsvBtn = document.getElementById("exportCsv");
+const exportJsonBtn = document.getElementById("exportJSON");
+const exportCsvBtn = document.getElementById("exportCSV");
+
+//インポート機能
+const importJsonBtn = document.getElementById("importJson");
+const fileInput = document.getElementById("fileInput");
+/**
+|--------------------------------------------------
+| JSONエクスポート関数
+|--------------------------------------------------
+*/
+function exportJSON() {
+  if (state.entries.length === 0) {
+    showMessage("記録がありません", "error");
+    return;
+  }
+
+  const json = JSON.stringify(state.entries, null, 2); //引1.オブジェクト,引2.replacerでnull, 引3.インデント幅
+
+  //ダウンロードリンクを生成
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  //<a>要素を動的につくり、hrefに上記のurlをセット
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `coffee-journal-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showMessage("JSONファイルをダウンロードしました", "success");
+}
+exportJsonBtn.addEventListener("click", exportJSON);
+
+/**
+|--------------------------------------------------
+| CSVエクスポート
+|--------------------------------------------------
+*/
+
+function exportCSV() {
+  //データがなければ、早期return
+  if (state.entries.length === 0) {
+    showMessage("記録がありません", "error");
+    return;
+  }
+  //headerとrowsをmapで組み立て
+  const headers = [
+    "ID",
+    "日付",
+    "豆名",
+    "焙煎度",
+    "粉量(g)",
+    "湯温(℃ )",
+    "抽出（秒）",
+    "評価",
+    "メモ",
+  ];
+  const rows = state.entries.map((entry) => [
+    entry.id,
+    entry.date,
+    escapeCSV(entry.bean),
+    entry.roast || "",
+    entry.dose || "",
+    entry.temp || "",
+    entry.secs || "",
+    entry.score || "",
+    escapeCSV(entry.note || ""),
+  ]);
+  //joinのネストでCSV文字列を生成
+  const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join(
+    "\n"
+  );
+  //excelで文字化けしないように、bomを先頭に
+  const bom = "\uFEFF"; //excel用
+  const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `coffee-journal-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showMessage("CSVファイルをダウンロードしました", "success");
+}
+/**
+|--------------------------------------------------
+| セル内にカンマ・改行・ダブルクォートがあるときにダブルクォートで囲み、
+| 内部の " は "" にエスケープするルールがあります。
+|--------------------------------------------------
+*/
+function escapeCSV(str) {
+  if (!str) return "";
+  if (str.includes(",") || str.includes("\n") || str.includes('"')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+exportCsvBtn.addEventListener("click", exportCSV);
 
 /**
  * メッセージを表示
@@ -164,7 +263,7 @@ function load() {
     } else if (data && typeof data === "object") {
       state.entries = Array.isArray(data.entries) ? data.entries : [];
       state.query = typeof data.query === "string" ? data.query : "";
-      state.sortKey = date.sortKey || "date";
+      state.sortKey = data.sortKey || "date";
     } else {
       console.warn("不正データ形式です");
       return;
@@ -203,7 +302,7 @@ function saveEntry(entry) {
     };
     state.entries.push(newEntry);
     console.log("記録を追加しました: ", newEntry);
-    showMessage("記録を保存しました", success);
+    showMessage("記録を保存しました", "success");
   }
 
   save();
@@ -254,7 +353,7 @@ function clearAll() {
 |--------------------------------------------------
 */
 function startEdit(id) {
-  const entry = state.entries.find((e) => e.di === id);
+  const entry = state.entries.find((e) => e.id === id);
   if (!entry) return;
 
   //編集中のIDを保存
@@ -289,7 +388,7 @@ function cancelEdit() {
   document.getElementById("id").value = "";
   form.reset();
 
-  const submitBtn = form.querySelector('button[type="submit"');
+  const submitBtn = form.querySelector('button[type="submit"]');
   submitBtn.textContent = "保存";
 
   msgEl.textContent = "";
@@ -406,6 +505,40 @@ clearBtn.addEventListener("click", clearAll);
 //イベント登録（リセット）
 resetBtnEl.addEventListener("click", () => {
   cancelEdit();
+});
+
+importJsonBtn.addEventListener("click", () => {
+  fileInput.click();
+});
+//ファイル読み込み処理を追加
+fileInput.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    if (!Array.isArray(data)) {
+      throw new Error("不正なデータ形式です");
+    }
+    const maxId = state.entries.length
+      ? Math.max(...state.entries.map((e) => e.id))
+      : 0;
+    const imported = data.map((entry, i) => ({
+      ...entry,
+      id: maxId + i + 1,
+    }));
+    state.entries = [...state.entries, ...imported];
+    save();
+    render();
+
+    showMessage(`${imported.length}件の記録をインポートしました`, "success");
+  } catch (err) {
+    console.error("インポート失敗:", err);
+    showMessage("ファイルの読み込みに失敗しました", "error");
+  }
+  fileInput.value = "";
 });
 
 //検索機能の処理
