@@ -8,6 +8,15 @@ import { validate } from "./validation/validate.js";
 
 import { escapeHtml } from "./utils/escapeHtml.js";
 import { escapeCSV } from "./utils/escapeCSV.js";
+
+import {
+  saveToStorage,
+  loadFromStorage,
+  clearStorage,
+} from "./storage/localStorage.js";
+
+import { showMessage, clearMessage } from "./dom/message.js";
+
 /**
 |--------------------------------------------------
 | グローバルな状態
@@ -24,6 +33,32 @@ let state = {
   perPage: 10, //1ページあたりの表示件数
   editingId: null, //追加、編集中の記録ID
 };
+
+/**
+|--------------------------------------------------
+| ヘルパー関数
+|--------------------------------------------------
+*/
+
+//save
+function save() {
+  const success = saveToStorage(state);
+  if (!success) {
+    showMessage(msgEl, "データの保存に失敗しました", "error");
+  }
+}
+
+//load
+function load() {
+  const data = loadFromStorage();
+  if (!data) return;
+  state.entries = Array.isArray(data.entries) ? data.entries : [];
+  state.query = data.query || "";
+  state.sortKey = data.sortKey || "date";
+  state.sortOrder = data.sortOrder || "desc";
+  state.page = data.page || 1;
+  state.perPage = data.perPage || 10;
+}
 
 //updateURL()関数
 function updateURL() {
@@ -114,7 +149,7 @@ const fileInput = document.getElementById("fileInput");
 */
 function exportJSON() {
   if (state.entries.length === 0) {
-    showMessage("記録がありません", "error");
+    showMessage(msgEl, "記録がありません", "error");
     return;
   }
 
@@ -131,7 +166,7 @@ function exportJSON() {
   a.click();
   URL.revokeObjectURL(url);
 
-  showMessage("JSONファイルをダウンロードしました", "success");
+  showMessage(msgEl, "JSONファイルをダウンロードしました", "success");
 }
 exportJsonBtn.addEventListener("click", exportJSON);
 
@@ -144,7 +179,7 @@ exportJsonBtn.addEventListener("click", exportJSON);
 function exportCSV() {
   //データがなければ、早期return
   if (state.entries.length === 0) {
-    showMessage("記録がありません", "error");
+    showMessage(msgEl, "記録がありません", "error");
     return;
   }
   //headerとrowsをmapで組み立て
@@ -185,33 +220,10 @@ function exportCSV() {
   a.click();
   URL.revokeObjectURL(url);
 
-  showMessage("CSVファイルをダウンロードしました", "success");
+  showMessage(msgEl, "CSVファイルをダウンロードしました", "success");
 }
 
 exportCsvBtn.addEventListener("click", exportCSV);
-
-/**
- * メッセージを表示
- * @param {string} message - 表示するメッセージ
- * @param {string} type - 'success' | 'error' | 'info'
- */
-
-function showMessage(message, type = "info") {
-  msgEl.textContent = message;
-
-  // 色を変更
-  if (type === "success") {
-    msgEl.style.color = "#10b981";
-  } else if (type === "error") {
-    msgEl.style.color = "#ef4444";
-  } else {
-    msgEl.style.color = "inherit";
-  }
-
-  setTimeout(() => {
-    msgEl.textContent = "";
-  }, 3000);
-}
 
 /**
 |--------------------------------------------------
@@ -229,7 +241,7 @@ function saveEntry(entry) {
         ...entry,
       };
       console.log("記録を更新しました:", state.entries[index]);
-      showMessage("記録を更新しました", "success");
+      showMessage(msgEl, "記録を更新しました", "success");
     }
     cancelEdit();
   } else {
@@ -239,7 +251,7 @@ function saveEntry(entry) {
     };
     state.entries.push(newEntry);
     console.log("記録を追加しました: ", newEntry);
-    showMessage("記録を保存しました", "success");
+    showMessage(msgEl, "記録を保存しました", "success");
   }
 
   save();
@@ -278,6 +290,7 @@ function clearAll() {
   }
   state.entries = [];
   save();
+  clearStorage();
   render();
   msgEl.textContent = "全ての記録を削除しました";
   setTimeout(() => {
@@ -311,7 +324,7 @@ function startEdit(id) {
   //フォームまでスクロール
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  showMessage("編集モードです", "info");
+  showMessage(msgEl, "編集モードです", "info");
 }
 
 /**
@@ -464,10 +477,14 @@ fileInput.addEventListener("change", async (e) => {
     save();
     render();
 
-    showMessage(`${imported.length}件の記録をインポートしました`, "success");
+    showMessage(
+      msgEl,
+      `${imported.length}件の記録をインポートしました`,
+      "success"
+    );
   } catch (err) {
     console.error("インポート失敗:", err);
-    showMessage("ファイルの読み込みに失敗しました", "error");
+    showMessage(msgEl, "ファイルの読み込みに失敗しました", "error");
   }
   fileInput.value = "";
 });

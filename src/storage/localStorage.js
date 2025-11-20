@@ -5,7 +5,7 @@
 */
 const STORAGE_KEY = "coffee-journal-entries";
 // データを保存
-export function save() {
+export function saveToStorage(state) {
   try {
     const data = {
       entries: state.entries,
@@ -15,38 +15,34 @@ export function save() {
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     console.log("データを保存しました", state.entries.length, "件");
+    return true;
   } catch (err) {
     console.log("保存に失敗しました", err);
-    msgEl.textContent = "データ保存に失敗しました";
+    return false;
   }
 }
 
 // データを読み込み
-export function load() {
+export function loadFromStorage() {
   try {
     const json = localStorage.getItem(STORAGE_KEY);
-    if (!json) {
-      console.log("保存されたデータがありません");
-      return;
-    }
-
+    if (!json) return null;
     const data = JSON.parse(json);
-    // 下位互換性: 古い形式（配列のみ）にも対応
     if (Array.isArray(data)) {
-      state.entries = data;
-    } else if (data && typeof data === "object") {
-      state.entries = Array.isArray(data.entries) ? data.entries : [];
-      state.query = typeof data.query === "string" ? data.query : "";
-      state.sortKey = data.sortKey || "date";
-    } else {
-      console.warn("不正データ形式です");
-      return;
+      return {
+        entries: data,
+        query: "",
+        sortKey: "date",
+        sortOrder: "desc",
+        page: 1,
+        perPage: 10,
+      };
     }
-
-    console.log("データを読み込みました:", state.entries.length, "件");
+    console.log("データを読み込みました:", data.entries?.length || 0, "件");
+    return data;
   } catch (err) {
     console.error("読み込みに失敗しました:", err);
-    msgEl.textContent = "データの読み込みに失敗しました";
+    return null;
   }
 }
 
