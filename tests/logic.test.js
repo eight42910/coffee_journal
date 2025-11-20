@@ -4,7 +4,7 @@ import {
   sortEntries,
   calculateStats,
   paginate,
-} from "../src/logic/logic.js";
+} from "../src/logic/logic.js ";
 
 /**
 |--------------------------------------------------

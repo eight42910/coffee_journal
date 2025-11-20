@@ -3,9 +3,11 @@ import {
   sortEntries,
   calculateStats,
   paginate,
-} from "./logic/logic.js";
-import { validate } from "./validation/validation.js";
+} from "./logic/index.js";
+import { validate } from "./validation/validate.js";
 
+import { escapeHtml } from "./utils/escapeHtml.js";
+import { escapeCSV } from "./utils/escapeCSV.js";
 /**
 |--------------------------------------------------
 | グローバルな状態
@@ -185,19 +187,6 @@ function exportCSV() {
 
   showMessage("CSVファイルをダウンロードしました", "success");
 }
-/**
-|--------------------------------------------------
-| セル内にカンマ・改行・ダブルクォートがあるときにダブルクォートで囲み、
-| 内部の " は "" にエスケープするルールがあります。
-|--------------------------------------------------
-*/
-function escapeCSV(str) {
-  if (!str) return "";
-  if (str.includes(",") || str.includes("\n") || str.includes('"')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
 
 exportCsvBtn.addEventListener("click", exportCSV);
 
@@ -222,58 +211,6 @@ function showMessage(message, type = "info") {
   setTimeout(() => {
     msgEl.textContent = "";
   }, 3000);
-}
-
-/**
-|--------------------------------------------------
-| localStorage key
-|--------------------------------------------------
-*/
-const STORAGE_KEY = "coffee-journal-entries";
-// データを保存
-function save() {
-  try {
-    const data = {
-      entries: state.entries,
-      query: state.query,
-      sortKey: state.sortKey,
-      sortOrder: state.sortOrder,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    console.log("データを保存しました", state.entries.length, "件");
-  } catch (err) {
-    console.log("保存に失敗しました", err);
-    msgEl.textContent = "データ保存に失敗しました";
-  }
-}
-
-// データを読み込み
-function load() {
-  try {
-    const json = localStorage.getItem(STORAGE_KEY);
-    if (!json) {
-      console.log("保存されたデータがありません");
-      return;
-    }
-
-    const data = JSON.parse(json);
-    // 下位互換性: 古い形式（配列のみ）にも対応
-    if (Array.isArray(data)) {
-      state.entries = data;
-    } else if (data && typeof data === "object") {
-      state.entries = Array.isArray(data.entries) ? data.entries : [];
-      state.query = typeof data.query === "string" ? data.query : "";
-      state.sortKey = data.sortKey || "date";
-    } else {
-      console.warn("不正データ形式です");
-      return;
-    }
-
-    console.log("データを読み込みました:", state.entries.length, "件");
-  } catch (err) {
-    console.error("読み込みに失敗しました:", err);
-    msgEl.textContent = "データの読み込みに失敗しました";
-  }
 }
 
 /**
@@ -475,12 +412,6 @@ function render() {
   //   li.textContent = `${date} - ${bean} (${score})`;
   //   list.appendChild(li);
   // });
-}
-
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 //初期化処理
