@@ -6,7 +6,6 @@ import {
 } from "./logic/index.js";
 import { validate } from "./validation/validate.js";
 
-import { escapeHtml } from "./utils/escapeHtml.js";
 import { escapeCSV } from "./utils/escapeCSV.js";
 
 import {
@@ -16,6 +15,7 @@ import {
 } from "./storage/localStorage.js";
 
 import { showMessage, clearMessage } from "./dom/message.js";
+import { renderEntries } from "./dom/render.js";
 
 /**
 |--------------------------------------------------
@@ -44,7 +44,7 @@ let state = {
 function save() {
   const success = saveToStorage(state);
   if (!success) {
-    showMessage(msgEl, "データの保存に失敗しました", "error");
+    showMessage(elements.msgEl, "データの保存に失敗しました", "error");
   }
 }
 
@@ -116,32 +116,66 @@ function loadFromURL() {
 let debounceTimer = null;
 
 //DOM操作の取得
-const form = document.getElementById("form");
-const beanInput = document.getElementById("bean");
-const scoreInput = document.getElementById("score");
-const dateInput = document.getElementById("date");
-const list = document.getElementById("list");
-const msgEl = document.getElementById("msg");
-//リセットボタン
-const resetBtnEl = document.getElementById("resetBtn");
-//全削除要素
-const clearBtn = document.getElementById("clear");
-//ソート
-const searchInput = document.getElementById("q");
-const sortSelect = document.getElementById("sort");
-const avgEl = document.getElementById("avg");
-//ページネーション
-const prevPageBtn = document.getElementById("prevPage");
-const nextPageBtn = document.getElementById("nextPage");
-const pageInfoEl = document.getElementById("pageInfo");
+// const form = document.getElementById("form");
+// const beanInput = document.getElementById("bean");
+// const scoreInput = document.getElementById("score");
+// const dateInput = document.getElementById("date");
+// const list = document.getElementById("list");
+// const msgEl = document.getElementById("msg");
+// //リセットボタン
+// const resetBtnEl = document.getElementById("resetBtn");
+// //全削除要素
+// const clearBtn = document.getElementById("clear");
+// //ソート
+// const searchInput = document.getElementById("q");
+// const sortSelect = document.getElementById("sort");
+// const avgEl = document.getElementById("avg");
+// //ページネーション
+// const prevPageBtn = document.getElementById("prevPage");
+// const nextPageBtn = document.getElementById("nextPage");
+// const pageInfoEl = document.getElementById("pageInfo");
 
-//JSON/CSVボタン
-const exportJsonBtn = document.getElementById("exportJSON");
-const exportCsvBtn = document.getElementById("exportCSV");
+// //JSON/CSVボタン
+// const exportJsonBtn = document.getElementById("exportJSON");
+// const exportCsvBtn = document.getElementById("exportCSV");
 
-//インポート機能
-const importJsonBtn = document.getElementById("importJson");
-const fileInput = document.getElementById("fileInput");
+// //インポート機能
+// const importJsonBtn = document.getElementById("importJson");
+// const fileInput = document.getElementById("fileInput");
+/**
+|--------------------------------------------------
+| DOM参照をまとめる（オブジェクト導入）
+|--------------------------------------------------
+*/
+const elements = {
+  form: document.getElementById("form"),
+  idInput: document.getElementById("id"),
+  beanInput: document.getElementById("bean"),
+  scoreInput: document.getElementById("score"),
+  dateInput: document.getElementById("date"),
+  roastInput: document.getElementById("roast"),
+  doseInput: document.getElementById("dose"),
+  tempInput: document.getElementById("temp"),
+  secsInput: document.getElementById("secs"),
+  noteInput: document.getElementById("note"),
+  list: document.getElementById("list"),
+  msgEl: document.getElementById("msg"),
+  avgEl: document.getElementById("avg"),
+  searchInput: document.getElementById("q"),
+  sortSelect: document.getElementById("sort"),
+  resetBtn: document.getElementById("reset"),
+  clearBtn: document.getElementById("clear"),
+  prevPageBtn: document.getElementById("prevPage"),
+  nextPageBtn: document.getElementById("nextPage"),
+  pageInfoEl: document.getElementById("pageInfo"),
+  exportJsonBtn: document.getElementById("exportJSON"),
+  exportCsvBtn: document.getElementById("exportCSV"),
+  importJsonBtn: document.getElementById("importJson"),
+  fileInput: document.getElementById("fileInput"),
+  submitBtn: null,
+};
+elements.submitBtn = elements.form.querySelector('button[type="submit"]');
+
 /**
 |--------------------------------------------------
 | JSONエクスポート関数
@@ -149,7 +183,7 @@ const fileInput = document.getElementById("fileInput");
 */
 function exportJSON() {
   if (state.entries.length === 0) {
-    showMessage(msgEl, "記録がありません", "error");
+    showMessage(elements.msgEl, "記録がありません", "error");
     return;
   }
 
@@ -166,9 +200,9 @@ function exportJSON() {
   a.click();
   URL.revokeObjectURL(url);
 
-  showMessage(msgEl, "JSONファイルをダウンロードしました", "success");
+  showMessage(elements.msgEl, "JSONファイルをダウンロードしました", "success");
 }
-exportJsonBtn.addEventListener("click", exportJSON);
+elements.exportJsonBtn.addEventListener("click", exportJSON);
 
 /**
 |--------------------------------------------------
@@ -179,7 +213,7 @@ exportJsonBtn.addEventListener("click", exportJSON);
 function exportCSV() {
   //データがなければ、早期return
   if (state.entries.length === 0) {
-    showMessage(msgEl, "記録がありません", "error");
+    showMessage(elements.msgEl, "記録がありません", "error");
     return;
   }
   //headerとrowsをmapで組み立て
@@ -220,10 +254,10 @@ function exportCSV() {
   a.click();
   URL.revokeObjectURL(url);
 
-  showMessage(msgEl, "CSVファイルをダウンロードしました", "success");
+  showMessage(elements.msgEl, "CSVファイルをダウンロードしました", "success");
 }
 
-exportCsvBtn.addEventListener("click", exportCSV);
+elements.exportCsvBtn.addEventListener("click", exportCSV);
 
 /**
 |--------------------------------------------------
@@ -241,7 +275,7 @@ function saveEntry(entry) {
         ...entry,
       };
       console.log("記録を更新しました:", state.entries[index]);
-      showMessage(msgEl, "記録を更新しました", "success");
+      showMessage(elements.msgEl, "記録を更新しました", "success");
     }
     cancelEdit();
   } else {
@@ -251,7 +285,7 @@ function saveEntry(entry) {
     };
     state.entries.push(newEntry);
     console.log("記録を追加しました: ", newEntry);
-    showMessage(msgEl, "記録を保存しました", "success");
+    showMessage(elements.msgEl, "記録を保存しました", "success");
   }
 
   save();
@@ -276,8 +310,8 @@ function deleteEntry(id) {
 
   render();
 
-  msgEl.textContent = "記録を削除しました";
-  setTimeout(() => (msgEl.textContent = ""), 2000);
+  elements.msgEl.textContent = "記録を削除しました";
+  setTimeout(() => (elements.msgEl.textContent = ""), 2000);
 }
 /**
 |--------------------------------------------------
@@ -292,9 +326,9 @@ function clearAll() {
   save();
   clearStorage();
   render();
-  msgEl.textContent = "全ての記録を削除しました";
+  elements.msgEl.textContent = "全ての記録を削除しました";
   setTimeout(() => {
-    msgEl.textContent = "";
+    elements.msgEl.textContent = "";
   }, 2000);
 }
 /**
@@ -310,21 +344,20 @@ function startEdit(id) {
   state.editingId = id;
 
   //フォーム値を入力
-  document.getElementById("id").value = entry.id;
-  beanInput.value = entry.bean;
-  scoreInput.value = entry.score;
-  dateInput.value = entry.date;
+  elements.idInput.value = entry.id;
+  elements.beanInput.value = entry.bean;
+  elements.scoreInput.value = entry.score;
+  elements.dateInput.value = entry.date;
 
   //他のフィールドで使っている場合は、ここでセット）
 
   //送信版のテキストを更新
-  const submitBtn = form.querySelector('button[type= "submit"]');
-  submitBtn.textContent = "更新";
+  elements.submitBtn.textContent = "更新";
 
   //フォームまでスクロール
-  form.scrollIntoView({ behavior: "smooth", block: "start" });
+  elements.form.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  showMessage(msgEl, "編集モードです", "info");
+  showMessage(elements.msgEl, "編集モードです", "info");
 }
 
 /**
@@ -335,13 +368,12 @@ function startEdit(id) {
 
 function cancelEdit() {
   state.editingId = null;
-  document.getElementById("id").value = "";
-  form.reset();
+  elements.idInput.value = "";
+  elements.form.reset();
 
-  const submitBtn = form.querySelector('button[type="submit"]');
-  submitBtn.textContent = "保存";
+  elements.submitBtn.textContent = "保存";
 
-  msgEl.textContent = "";
+  elements.msgEl.textContent = "";
 }
 
 /**
@@ -349,82 +381,15 @@ function cancelEdit() {
 | render
 |--------------------------------------------------
 */
+
 function render() {
-  //並び順
-  // 1. フィルタリング
-
-  let filtered = filterEntries(state.entries, state.query);
-
-  // 2. ソート
-  const sorted = sortEntries(filtered, state.sortKey, state.sortOrder);
-  // 3. 統計情報を計算
-  const stats = calculateStats(filtered);
-
-  //4. paginateの呼び出しを追加
-  const { items, totalPages, currentPage, hasNext, hasPrev, total } = paginate(
-    sorted,
-    state.page,
-    state.perPage
-  );
-
-  list.innerHTML = "";
-
-  //ページ情報の更新
-  if (totalPages === 0) {
-    pageInfoEl.textContent = "0 / 0";
-    prevPageBtn.disabled = true;
-    nextPageBtn.disabled = true;
-  } else {
-    pageInfoEl.textContent = `${currentPage} / ${totalPages}`;
-    prevPageBtn.disabled = !hasPrev;
-    nextPageBtn.disabled = !hasNext;
-  }
-
-  if (items.length === 0) {
-    list.innerHTML = state.query
-      ? `<li class="text-sm text-stone-500">検索結果がありません</li>`
-      : `<li class="text-sm text-stone-500">記録がありません</li>`;
-    return;
-  }
-
-  //表示内容
-  items.forEach((entry) => {
-    const li = document.createElement("li");
-    li.className =
-      "flex items-center justify-between gap-4 rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm";
-    const stars = "★".repeat(entry.score) + "☆".repeat(5 - entry.score);
-
-    const infoWrapper = document.createElement("div");
-    infoWrapper.className = "flex flex-col gap-1";
-
-    const title = document.createElement("strong");
-    title.className = "text-sm font-semibold text-stone-900";
-    title.innerHTML = escapeHtml(entry.bean);
-
-    const meta = document.createElement("span");
-    meta.className = "text-xs text-stone-500";
-    meta.textContent = `${stars} | ${entry.date}`;
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.type = "button";
-    deleteBtn.className =
-      "inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-200";
-    deleteBtn.innerHTML = `<span aria-hidden="true">🗑️</span>削除`;
-    deleteBtn.addEventListener("click", () => deleteEntry(entry.id));
-
-    infoWrapper.appendChild(title);
-    infoWrapper.appendChild(meta);
-    li.appendChild(infoWrapper);
-    li.appendChild(deleteBtn);
-
-    list.appendChild(li);
+  renderEntries(state, {
+    list: elements.list,
+    avgEl: elements.avgEl,
+    pageInfoEl: elements.pageInfoEl,
+    prevPageBtn: elements.prevPageBtn,
+    nextPageBtn: elements.nextPageBtn,
   });
-
-  // state.entries.forEach(({ id, bean, score, date }) => {
-  //   const li = document.createElement("li");
-  //   li.textContent = `${date} - ${bean} (${score})`;
-  //   list.appendChild(li);
-  // });
 }
 
 //初期化処理
@@ -434,8 +399,8 @@ function init() {
   loadFromURL(); //URLから状態を復元
 
   // stateの検索条件とソート条件をフォームに反映
-  searchInput.value = state.query;
-  sortSelect.value = `${state.sortKey}_${state.sortOrder}`;
+  elements.searchInput.value = state.query;
+  elements.sortSelect.value = `${state.sortKey}_${state.sortOrder}`;
 
   //初回のURL更新
   updateURL();
@@ -444,18 +409,18 @@ function init() {
 }
 
 //イベント登録(全削除)
-clearBtn.addEventListener("click", clearAll);
+elements.clearBtn.addEventListener("click", clearAll);
 
 //イベント登録（リセット）
-resetBtnEl.addEventListener("click", () => {
+elements.resetBtn.addEventListener("click", () => {
   cancelEdit();
 });
 
-importJsonBtn.addEventListener("click", () => {
-  fileInput.click();
+elements.importJsonBtn.addEventListener("click", () => {
+  elements.fileInput.click();
 });
 //ファイル読み込み処理を追加
-fileInput.addEventListener("change", async (e) => {
+elements.fileInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
@@ -478,19 +443,19 @@ fileInput.addEventListener("change", async (e) => {
     render();
 
     showMessage(
-      msgEl,
+      elements.msgEl,
       `${imported.length}件の記録をインポートしました`,
       "success"
     );
   } catch (err) {
     console.error("インポート失敗:", err);
-    showMessage(msgEl, "ファイルの読み込みに失敗しました", "error");
+    showMessage(elements.msgEl, "ファイルの読み込みに失敗しました", "error");
   }
-  fileInput.value = "";
+  elements.fileInput.value = "";
 });
 
 //検索機能の処理
-searchInput.addEventListener("input", (e) => {
+elements.searchInput.addEventListener("input", (e) => {
   const value = e.target.value;
 
   if (debounceTimer) {
@@ -507,7 +472,7 @@ searchInput.addEventListener("input", (e) => {
 });
 
 //ソート機能の実装
-sortSelect.addEventListener("change", (e) => {
+elements.sortSelect.addEventListener("change", (e) => {
   const value = e.target.value;
   const [key, order] = value.split("_");
 
@@ -525,18 +490,18 @@ sortSelect.addEventListener("change", (e) => {
 |--------------------------------------------------
 */
 //前のページへ
-prevPageBtn.addEventListener("click", () => {
+elements.prevPageBtn.addEventListener("click", () => {
   if (state.page > 1) {
     state.page--;
     updateURL();
     save();
     render();
-    list.scrollIntoView({ behavior: "smooth", block: "start" });
+    elements.list.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 });
 
 //次のページへ
-nextPageBtn.addEventListener("click", () => {
+elements.nextPageBtn.addEventListener("click", () => {
   const filtered = filterEntries(state.entries, state.query);
   const sorted = sortEntries(filtered, state.sortKey, state.sortOrder);
   const { totalPages } = paginate(sorted, state.page, state.perPage);
@@ -546,7 +511,7 @@ nextPageBtn.addEventListener("click", () => {
     updateURL();
     save();
     render();
-    list.scrollIntoView({ behavior: "smooth", block: "start" });
+    elements.list.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 });
 
@@ -561,8 +526,8 @@ window.addEventListener("popstate", () => {
   // URLから状態を復元
   loadFromURL();
   // フォームの値を同期
-  searchInput.value = state.query;
-  sortSelect.value = `${state.sortKey}_${state.sortOrder}`;
+  elements.searchInput.value = state.query;
+  elements.sortSelect.value = `${state.sortKey}_${state.sortOrder}`;
   render();
 });
 
@@ -574,28 +539,28 @@ window.addEventListener("popstate", () => {
 */
 
 //フォーム送信処理
-form.addEventListener("submit", (e) => {
+elements.form.addEventListener("submit", (e) => {
   e.preventDefault(); //ページリロードを防ぐ
 
   //入力値を取得
   const entry = {
-    bean: beanInput.value.trim(),
-    score: Number(scoreInput.value),
-    date: dateInput.value,
+    bean: elements.beanInput.value.trim(),
+    score: Number(elements.scoreInput.value),
+    date: elements.dateInput.value,
   };
 
   const errors = validate(entry);
   if (errors.length > 0) {
-    msgEl.textContent = errors.join("/");
-    msgEl.style.color = "#ef4444";
+    elements.msgEl.textContent = errors.join("/");
+    elements.msgEl.style.color = "#ef4444";
     return; // エラーを表示したら保存処理に進まない
   }
 
   saveEntry(entry);
-  form.reset();
-  msgEl.textContent = "記録を保存しました";
-  msgEl.style.color = "#10b981";
-  setTimeout(() => (msgEl.textContent = ""), 2000);
+  elements.form.reset();
+  elements.msgEl.textContent = "記録を保存しました";
+  elements.msgEl.style.color = "#10b981";
+  setTimeout(() => (elements.msgEl.textContent = ""), 2000);
   render();
 });
 
