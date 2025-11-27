@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validate } from "../src/validation/validation.js";
+import { validate } from "../src/validation/validate.js";
 
 //テストブロック
 describe("validate", () => {

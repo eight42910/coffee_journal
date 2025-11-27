@@ -12,6 +12,8 @@ export function saveToStorage(state) {
       query: state.query,
       sortKey: state.sortKey,
       sortOrder: state.sortOrder,
+      page: state.page,
+      perPage: state.perPage,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     console.log("データを保存しました", state.entries.length, "件");

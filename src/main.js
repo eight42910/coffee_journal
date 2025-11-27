@@ -1,9 +1,4 @@
-import {
-  filterEntries,
-  sortEntries,
-  calculateStats,
-  paginate,
-} from "./logic/index.js";
+import { filterEntries, sortEntries, paginate } from "./logic/index.js";
 import { validate } from "./validation/validate.js";
 
 import { escapeCSV } from "./utils/escapeCSV.js";
@@ -15,7 +10,7 @@ import {
 } from "./storage/localStorage.js";
 
 import { showMessage, clearMessage } from "./dom/message.js";
-import { renderEntries } from "./dom/render.js";
+import { renderEntries, updateForm } from "./dom/render.js";
 
 /**
 |--------------------------------------------------
@@ -163,7 +158,7 @@ const elements = {
   avgEl: document.getElementById("avg"),
   searchInput: document.getElementById("q"),
   sortSelect: document.getElementById("sort"),
-  resetBtn: document.getElementById("reset"),
+  resetBtn: document.getElementById("resetBtn"),
   clearBtn: document.getElementById("clear"),
   prevPageBtn: document.getElementById("prevPage"),
   nextPageBtn: document.getElementById("nextPage"),
@@ -342,21 +337,8 @@ function startEdit(id) {
 
   //編集中のIDを保存
   state.editingId = id;
-
-  //フォーム値を入力
-  elements.idInput.value = entry.id;
-  elements.beanInput.value = entry.bean;
-  elements.scoreInput.value = entry.score;
-  elements.dateInput.value = entry.date;
-
-  //他のフィールドで使っている場合は、ここでセット）
-
-  //送信版のテキストを更新
-  elements.submitBtn.textContent = "更新";
-
-  //フォームまでスクロール
+  updateForm(entry, elements);
   elements.form.scrollIntoView({ behavior: "smooth", block: "start" });
-
   showMessage(elements.msgEl, "編集モードです", "info");
 }
 
@@ -368,12 +350,8 @@ function startEdit(id) {
 
 function cancelEdit() {
   state.editingId = null;
-  elements.idInput.value = "";
-  elements.form.reset();
-
-  elements.submitBtn.textContent = "保存";
-
-  elements.msgEl.textContent = "";
+  updateForm(null, elements);
+  clearMessage(elements.msgEl);
 }
 
 /**
@@ -563,5 +541,8 @@ elements.form.addEventListener("submit", (e) => {
   setTimeout(() => (elements.msgEl.textContent = ""), 2000);
   render();
 });
+
+window.deleteEntry = deleteEntry;
+window.startEdit = startEdit;
 
 init();

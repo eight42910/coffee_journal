@@ -4,7 +4,7 @@ import {
   calculateStats,
   paginate,
 } from "../logic/index.js";
-import { escapeHtml } from "../utils/escapeHtml";
+import { escapeHtml } from "../utils/escapeHtml.js";
 
 /**
 |--------------------------------------------------
@@ -13,8 +13,6 @@ import { escapeHtml } from "../utils/escapeHtml";
 */
 
 export function renderEntries(state, elements) {
-  const { list, avgEl, pageInfoEl, prevPageBtn, nextPageBtn } = elements;
-
   //１.フィルタ
   const filtered = filterEntries(state.entries, state.query);
 
@@ -30,19 +28,19 @@ export function renderEntries(state, elements) {
 
   // 4. 統計情報を計算
   const stats = calculateStats(filtered);
-  avgEl.textContent =
-    stats.total === 0 ? "-" : `☆${stats.avg}(${stats.total}件)`;
+  elements.avgEl.textContent =
+    stats.total === 0 ? "-" : `★${stats.avg} (${stats.total}件)`;
 
   //ページ情報
-  pageInfoEl.textContent =
-    totalPages === 0 ? "0/ 0" : `${currentPage}/ ${totalPages}`;
-  prevPageBtn.disable = totalPages === 0 || !hasPrev;
-  nextPageBtn.disable = totalPages === 0 || !hasNext;
+  elements.pageInfoEl.textContent =
+    totalPages === 0 ? "0 / 0" : `${currentPage} / ${totalPages}`;
+  elements.prevPageBtn.disabled = totalPages === 0 || !hasPrev;
+  elements.nextPageBtn.disabled = totalPages === 0 || !hasNext;
 
   //リスト描画
-  list.innerHTML = "";
+  elements.list.innerHTML = "";
   if (items.length === 0) {
-    list.innerHTML = state.query
+    elements.list.innerHTML = state.query
       ? `<li class="text-sm text-stone-500">検索結果がありません</li>`
       : `<li class="text-sm text-stone-500">記録がありません</li>`;
     return;
@@ -73,7 +71,7 @@ export function renderEntries(state, elements) {
 
     infoWrapper.append(title, meta);
     li.append(infoWrapper, deleteBtn);
-    list.appendChild(li);
+    elements.list.appendChild(li);
   });
 }
 
